@@ -1,19 +1,20 @@
-import torch 
-from replaybuffer.transitionStorage import Transitions
-from networks.duelingNetwork import DuelingNetwork
-import pickle
-from torchrl.data import ListStorage, PrioritizedReplayBuffer
+from torchrl.data import TensorDictPrioritizedReplayBuffer
+import torch
+from torchrl.data import LazyTensorStorage
+from tensordict import TensorDict
 import torch.optim as optim
 import numpy as np
 import random
 from tensordict import TensorDict
+from networks.duelingNetwork import DuelingNetwork
+import pickle
 
 
 
 class RainbowDQN:
     def __init__(self, env, config, wandb, device):
         self.env = env
-        self.replaybuffer = PrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=ListStorage(config.buffer_capacity))
+        self.replaybuffer = TensorDictPrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=LazyTensorStorage(max_size=config.buffer_capacity), priority_key="td_error", batch_size=config.batch_size)
         self.config = config
         self.wandb = wandb
         self.device = device
@@ -56,14 +57,14 @@ class RainbowDQN:
                     next_state = np.array(next_state)
                     error = reward + QNetB_target(state_v, action)  - QNetB(state_v, action)
                     transition = TensorDict({
-                                    "obs": torch.tensor(state_v),           
-                                    "action": torch.tensor(action),               
-                                    "reward": torch.tensor(reward),              
-                                    "done": torch.tensor(done),              
-                                    "next" : torch.tensor(next_state),
-                                    "td_error": torch.tensor(error.abs())             
-                                }, batch_size=[1])
-                    self.replaybuffer.set(transition) 
+                        "obs": torch.tensor(state_v),     
+                        "action": torch.tensor(action).unsqueeze(0),
+                        "reward": torch.tensor(reward).unsqueeze(0),
+                        "done": torch.tensor(done).unsqueeze(0),
+                        "next": torch.tensor(next_state).unsqueeze(0),
+                        "td_error": torch.as_tensor(error).view(1)
+                    }, batch_size=[1])
+                    self.replaybuffer.extend(transition) 
                 else:
                     if random.random() < epsilon:
                         action = self.env.action_space.sample()
@@ -75,20 +76,21 @@ class RainbowDQN:
                     next_state = np.array(next_state)
                     error = reward + QNetA_target(state_v, action)  - QNetA(state_v, action)
                     transition = TensorDict({
-                                    "obs": torch.tensor(state_v),           
-                                    "action": torch.tensor(action),               
-                                    "reward": torch.tensor(reward),              
-                                    "done": torch.tensor(done),              
-                                    "next" : torch.tensor(next_state),
-                                    "td_error": torch.tensor(error.abs())             
-                                }, batch_size=[1])
-                    self.replaybuffer.set(transition) 
+                        "obs": torch.tensor(state_v),    
+                        "action": torch.tensor(action).unsqueeze(0),
+                        "reward": torch.tensor(reward).unsqueeze(0),
+                        "done": torch.tensor(done).unsqueeze(0),
+                        "next": torch.tensor(next_state).unsqueeze(0),
+                       "td_error": torch.as_tensor(error).view(1)
+                    }, batch_size=[1])
+
+                    self.replaybuffer.extend(transition)  
                         
             
                 state = next_state
                 total_reward += reward
 
-                if self.replaybuffer.size > 10000:
+                if len(self.replaybuffer) > 10000:
                     sample = self.replaybuffer.sample(batch_size)
                     states, actions, next_states, rewards, dones = zip(*sample)
                     if random.random() < 0.5:
@@ -126,7 +128,7 @@ class RainbowDQN:
 
 
     def save_buffer(self):
-        file_name = self.env + "replay_buffer_state.pkl"
+        file_name = self.env + str(self.config.random_seed) + "replay_buffer_state.pkl"
         with open(file_name, "wb") as f:
                 pickle.dump(self.replaybuffer.state_dict(), f)
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn 
 import wandb
 import argparse
-from omegaconf import OmegaConf
+from   omegaconf import OmegaConf
 import pickle 
 import gymnasium as gym
 from rainbowDQN.rainbowdqn import RainbowDQN

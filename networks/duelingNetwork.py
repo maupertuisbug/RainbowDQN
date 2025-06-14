@@ -48,6 +48,7 @@ class DuelingNetwork(torch.nn.Module):
 
         if x.ndim == 3:
             x_out = self.conv(x.unsqueeze(0)/255.0)
+            a = torch.tensor(torch.tensor(a).unsqueeze(0), device = self.device).unsqueeze(0)
         else :
             x_out = self.conv(x/255.0)
         x_out = x_out.view(x_out.size(0), -1)
@@ -55,7 +56,7 @@ class DuelingNetwork(torch.nn.Module):
         value = self.valuefunction(x_out)
         advantage = self.advantagefunction(x_out)
         advantage_mean = torch.mean(advantage, dim=-1)
-        advantage_value = torch.gather(advantage, dim=1, index=torch.tensor(a, device=self.device).unsqueeze(1))
+        advantage_value = torch.gather(advantage, dim=1, index=a)
         advantage_value = advantage_value - advantage_mean
         q_value = value + advantage_value
         return q_value
