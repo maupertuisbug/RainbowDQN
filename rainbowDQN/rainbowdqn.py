@@ -35,7 +35,7 @@ class RainbowDQN:
         epsilon_decay = 1e-6
         batch_size = self.config.batch_size
         gamma = 0.99
-        sync_freq = 1000
+        sync_freq = 300
         steps = 0
 
         for ep in range(0,episodes):
@@ -43,6 +43,7 @@ class RainbowDQN:
             state = np.array(state)
             total_reward = 0
             done = False
+            epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
 
             while not done:
                 state_v = torch.tensor(np.expand_dims(state, 0), device=self.device, dtype=torch.float32)
@@ -125,6 +126,7 @@ class RainbowDQN:
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             self.wandb.log({'total reward' : total_reward})
+            self.wandb.log({'average reward' : np.mean(total_reward)})
 
 
     def save_buffer(self):
