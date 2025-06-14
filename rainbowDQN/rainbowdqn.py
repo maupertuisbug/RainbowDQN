@@ -129,9 +129,9 @@ class RainbowDQN:
                     for target_param, param in zip(QNetB_target.parameters(), QNetB.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
-            self.wandb.log({'total reward' : total_reward})
+            self.wandb.log({'total reward' : total_reward}, step = ep)
             rewards.append(total_reward)
-            self.wandb.log({'average reward' : np.mean(rewards)})
+            self.wandb.log({'average reward' : np.mean(rewards)}, step = ep)
 
 
     def save_buffer(self):
