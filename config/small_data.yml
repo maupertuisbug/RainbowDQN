@@ -1,0 +1,17 @@
+method: grid
+metric: 
+  goal : maximize 
+  name : total_reward
+parameters :
+  env:
+    values : ['ALE/Breakout-v5']
+  episodes :
+    values : [10]
+  buffer_capacity :
+    values : [10000000]
+  noisyLayer :
+    values : [0]
+  batch_size :
+    values : [128]
+  random_seed :
+    values : [55]
