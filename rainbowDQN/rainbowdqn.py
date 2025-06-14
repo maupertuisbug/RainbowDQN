@@ -37,11 +37,14 @@ class RainbowDQN:
         gamma = 0.99
         sync_freq = 300
         steps = 0
+        rewards = []
+        ep = 0
 
-        for ep in range(0,episodes):
+        while ep < self.config.episodes:
             state , _ = self.env.reset()
             state = np.array(state)
             total_reward = 0
+            ep = ep+1
             done = False
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
 
@@ -89,6 +92,7 @@ class RainbowDQN:
                         
             
                 state = next_state
+                steps += 1
                 total_reward += reward
 
                 if len(self.replaybuffer) > 10000:
@@ -126,7 +130,8 @@ class RainbowDQN:
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             self.wandb.log({'total reward' : total_reward})
-            self.wandb.log({'average reward' : np.mean(total_reward)})
+            rewards.append(total_reward)
+            self.wandb.log({'average reward' : np.mean(rewards)})
 
 
     def save_buffer(self):
