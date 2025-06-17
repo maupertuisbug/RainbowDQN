@@ -10,7 +10,7 @@ parameters :
   buffer_capacity :
     values : [1000000]
   noisyLayer :
-    values : [0]
+    values : [0,1]
   batch_size :
     values : [128]
   random_seed :

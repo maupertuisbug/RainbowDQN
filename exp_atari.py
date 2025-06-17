@@ -36,7 +36,7 @@ if __name__ == "__main__":
     config_dict = OmegaConf.to_container(config, resolve=True)
     project_name = "RDQN"
     sweep_id   = wandb.sweep(sweep=config_dict, project=project_name)
-    agent      = wandb.agent(sweep_id, function=run_exp, count = 5)
+    agent      = wandb.agent(sweep_id, function=run_exp, count = 10)
 
 
 
