@@ -8,13 +8,15 @@ import random
 from tensordict import TensorDict
 from networks.duelingNetwork import DuelingNetwork
 import pickle
+from gym.wrappers import RecordVideo
+
 
 
 
 class RainbowDQN:
     def __init__(self, env, config, wandb, device):
         self.env = env
-        self.replaybuffer = TensorDictPrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=LazyTensorStorage(max_size=config.buffer_capacity), priority_key="td_error", batch_size=config.batch_size)
+        self.replaybuffer = TensorDictPrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=LazyTensorStorage(max_size=config.buffer_capacity, device=device), priority_key="td_error", batch_size=config.batch_size)
         self.config = config
         self.wandb = wandb
         self.device = device
@@ -37,8 +39,13 @@ class RainbowDQN:
         gamma = 0.99
         sync_freq = 300
         steps = 0
-        rewards = []
+        rewards_l = []
         ep = 0
+        video_dir = "/video"
+        env = RecordVideo(
+                        self.env,
+                        video_folder=video_dir,
+                        episode_trigger=lambda ep: ep % 1000 == 0)
 
         while ep < self.config.episodes:
             state , _ = self.env.reset()
@@ -47,45 +54,42 @@ class RainbowDQN:
             ep = ep+1
             done = False
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
-
+            state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
-                state_v = torch.tensor(np.expand_dims(state, 0), device=self.device, dtype=torch.float32)
                 if random.random() < 0.5:
                     if random.random() < epsilon:
                         action = self.env.action_space.sample()
                     else:
-                        q_values = QNetA(state_v)
-                        action = int(torch.argmax(q_values, dim=1).item())
-                   
+                        action = np.int64(QNetA.optimal_action(state).squeeze(0).item())
+                    
                     next_state, reward, done, _, _ = self.env.step(action)
-                    next_state = np.array(next_state)
-                    error = reward + QNetB_target(state_v, action)  - QNetB(state_v, action)
+                    next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
+                    error = reward + gamma*(QNetB_target(next_state, QNetB_target.optimal_action(next_state)))  - QNetA(state, action)
                     transition = TensorDict({
-                        "obs": torch.tensor(state_v),     
-                        "action": torch.tensor(action).unsqueeze(0),
+                        "obs": torch.tensor(state).unsqueeze(0),      
+                        "action": torch.tensor([[action]]),
                         "reward": torch.tensor(reward).unsqueeze(0),
                         "done": torch.tensor(done).unsqueeze(0),
                         "next": torch.tensor(next_state).unsqueeze(0),
-                        "td_error": torch.as_tensor(error).view(1)
+                        "td_error": torch.abs(torch.as_tensor(error)).view(1)
                     }, batch_size=[1])
                     self.replaybuffer.extend(transition) 
                 else:
                     if random.random() < epsilon:
                         action = self.env.action_space.sample()
                     else:
-                        q_values = QNetB(state_v)
-                        action = int(torch.argmax(q_values, dim=1).item())
+                        action = np.int64(QNetB.optimal_action(state).squeeze(0).item())
                    
                     next_state, reward, done, _, _  = self.env.step(action)
-                    next_state = np.array(next_state)
-                    error = reward + QNetA_target(state_v, action)  - QNetA(state_v, action)
+                    next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
+                    error = reward + gamma*(QNetA_target(next_state, QNetA_target.optimal_action(next_state)))  - QNetB(state, action)
                     transition = TensorDict({
-                        "obs": torch.tensor(state_v),    
-                        "action": torch.tensor(action).unsqueeze(0),
+                        "obs": torch.tensor(state).unsqueeze(0),    
+                        "action": torch.tensor([[action]]),
                         "reward": torch.tensor(reward).unsqueeze(0),
                         "done": torch.tensor(done).unsqueeze(0),
                         "next": torch.tensor(next_state).unsqueeze(0),
-                       "td_error": torch.as_tensor(error).view(1)
+                       "td_error": torch.abs(torch.as_tensor(error)).view(1)
                     }, batch_size=[1])
 
                     self.replaybuffer.extend(transition)  
@@ -97,10 +101,14 @@ class RainbowDQN:
 
                 if len(self.replaybuffer) > 10000:
                     sample = self.replaybuffer.sample(batch_size)
-                    states, actions, next_states, rewards, dones = zip(*sample)
+                    states = sample["obs"]
+                    actions = sample["action"]
+                    next_states = sample["next"]
+                    rewards = sample["reward"]
+                    dones = sample["done"]
                     if random.random() < 0.5:
                         q_values = QNetA(states, actions)
-                        target_q_values = rewards + QNetA_target(next_states, QNetB.optimal_action(next_states))
+                        target_q_values = rewards + gamma*QNetA_target(next_states, QNetB_target.optimal_action(next_states))
                         td_error = target_q_values - q_values
                         sample.set("td_error", td_error.abs().detach())
                         self.replaybuffer.update_tensordict_priority(sample)
@@ -111,7 +119,7 @@ class RainbowDQN:
                         optimizerA.step()
                     else :
                         q_values = QNetB(states, actions)
-                        target_q_values = rewards + QNetB_target(next_states, QNetA.optimal_action(next_states))
+                        target_q_values = rewards + gamma*QNetB_target(next_states, QNetA_target.optimal_action(next_states))
                         td_error = target_q_values - q_values
                         sample.set("td_error", td_error.abs().detach())
                         self.replaybuffer.update_tensordict_priority(sample)
@@ -130,8 +138,8 @@ class RainbowDQN:
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
 
             self.wandb.log({'total reward' : total_reward}, step = ep)
-            rewards.append(total_reward)
-            self.wandb.log({'average reward' : np.mean(rewards)}, step = ep)
+            rewards_l.append(total_reward)
+            self.wandb.log({'average reward' : np.mean(rewards_l)}, step = ep)
 
 
     def save_buffer(self):

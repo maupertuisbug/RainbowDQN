@@ -1,5 +1,6 @@
 import torch
 from networks.layers.noisylayer import NoisyLayer
+import numpy
 
 
 
@@ -46,9 +47,10 @@ class DuelingNetwork(torch.nn.Module):
 
     def forward(self, x, a):
 
+        if a.dtype == numpy.dtype('int64') :
+            a = torch.tensor([[a]], device = self.device)
         if x.ndim == 3:
             x_out = self.conv(x.unsqueeze(0)/255.0)
-            a = torch.tensor(torch.tensor(a).unsqueeze(0), device = self.device).unsqueeze(0)
         else :
             x_out = self.conv(x/255.0)
         x_out = x_out.view(x_out.size(0), -1)
@@ -70,9 +72,9 @@ class DuelingNetwork(torch.nn.Module):
         x_out = torch.nn.functional.relu(x_out)
         value = self.valuefunction(x_out)
         advantage = self.advantagefunction(x_out)
-        advantage_mean = torch.mean(advantage, dim=-1)
+        advantage_mean = torch.mean(advantage, dim=-1).unsqueeze(1)
         advantage_values = advantage - advantage_mean
-        a = torch.argmax(advantage_values).item()
+        a = torch.argmax(advantage_values,dim=1).unsqueeze(1).to(self.device)
         return a
 
     def get_output_size(self, shape):
