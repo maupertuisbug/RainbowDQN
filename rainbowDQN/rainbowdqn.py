@@ -9,6 +9,7 @@ from tensordict import TensorDict
 from networks.duelingNetwork import DuelingNetwork
 import pickle
 from gym.wrappers import RecordVideo
+import gc
 
 
 
@@ -40,7 +41,9 @@ class RainbowDQN:
         sync_freq = 300
         steps = 0
         rewards_l = []
+        losses = []
         ep = 0
+        inference_mode = torch.no_grad
         video_dir = "/video"
         env = RecordVideo(
                         self.env,
@@ -48,6 +51,8 @@ class RainbowDQN:
                         episode_trigger=lambda ep: ep % 1000 == 0)
 
         while ep < self.config.episodes:
+            torch.cuda.empty_cache()
+            gc.collect()
             state , _ = self.env.reset()
             state = np.array(state)
             total_reward = 0
@@ -56,43 +61,44 @@ class RainbowDQN:
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
-                if random.random() < 0.5:
-                    if random.random() < epsilon:
-                        action = self.env.action_space.sample()
+                with inference_mode():
+                    if random.random() < 0.5:
+                        if random.random() < epsilon:
+                            action = self.env.action_space.sample()
+                        else:
+                            action = np.int64(QNetA.optimal_action(state).squeeze(0).item())
+                        
+                        next_state, reward, done, _, _ = self.env.step(action)
+                        next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
+                        error = reward + gamma*(QNetB_target(next_state, QNetB_target.optimal_action(next_state)))  - QNetA(state, action)
+                        transition = TensorDict({
+                            "obs": torch.tensor(state).unsqueeze(0),      
+                            "action": torch.tensor([[action]]),
+                            "reward": torch.tensor(reward).unsqueeze(0),
+                            "done": torch.tensor(done).unsqueeze(0),
+                            "next": torch.tensor(next_state).unsqueeze(0),
+                            "td_error": torch.abs(torch.as_tensor(error)).view(1)
+                        }, batch_size=[1])
+                        self.replaybuffer.extend(transition) 
                     else:
-                        action = np.int64(QNetA.optimal_action(state).squeeze(0).item())
+                        if random.random() < epsilon:
+                            action = self.env.action_space.sample()
+                        else:
+                            action = np.int64(QNetB.optimal_action(state).squeeze(0).item())
                     
-                    next_state, reward, done, _, _ = self.env.step(action)
-                    next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
-                    error = reward + gamma*(QNetB_target(next_state, QNetB_target.optimal_action(next_state)))  - QNetA(state, action)
-                    transition = TensorDict({
-                        "obs": torch.tensor(state).unsqueeze(0),      
-                        "action": torch.tensor([[action]]),
-                        "reward": torch.tensor(reward).unsqueeze(0),
-                        "done": torch.tensor(done).unsqueeze(0),
-                        "next": torch.tensor(next_state).unsqueeze(0),
+                        next_state, reward, done, _, _  = self.env.step(action)
+                        next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
+                        error = reward + gamma*(QNetA_target(next_state, QNetA_target.optimal_action(next_state)))  - QNetB(state, action)
+                        transition = TensorDict({
+                            "obs": torch.tensor(state).unsqueeze(0),    
+                            "action": torch.tensor([[action]]),
+                            "reward": torch.tensor(reward).unsqueeze(0),
+                            "done": torch.tensor(done).unsqueeze(0),
+                            "next": torch.tensor(next_state).unsqueeze(0),
                         "td_error": torch.abs(torch.as_tensor(error)).view(1)
-                    }, batch_size=[1])
-                    self.replaybuffer.extend(transition) 
-                else:
-                    if random.random() < epsilon:
-                        action = self.env.action_space.sample()
-                    else:
-                        action = np.int64(QNetB.optimal_action(state).squeeze(0).item())
-                   
-                    next_state, reward, done, _, _  = self.env.step(action)
-                    next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
-                    error = reward + gamma*(QNetA_target(next_state, QNetA_target.optimal_action(next_state)))  - QNetB(state, action)
-                    transition = TensorDict({
-                        "obs": torch.tensor(state).unsqueeze(0),    
-                        "action": torch.tensor([[action]]),
-                        "reward": torch.tensor(reward).unsqueeze(0),
-                        "done": torch.tensor(done).unsqueeze(0),
-                        "next": torch.tensor(next_state).unsqueeze(0),
-                       "td_error": torch.abs(torch.as_tensor(error)).view(1)
-                    }, batch_size=[1])
+                        }, batch_size=[1])
 
-                    self.replaybuffer.extend(transition)  
+                        self.replaybuffer.extend(transition)  
                         
             
                 state = next_state
@@ -114,6 +120,7 @@ class RainbowDQN:
                         self.replaybuffer.update_tensordict_priority(sample)
                         loss_fn = torch.nn.MSELoss()
                         loss = loss_fn(q_values, target_q_values.detach())
+                        losses.append(loss.detach().cpu().item())
                         optimizerA.zero_grad()
                         loss.backward()
                         optimizerA.step()
@@ -125,6 +132,7 @@ class RainbowDQN:
                         self.replaybuffer.update_tensordict_priority(sample)
                         loss_fn = torch.nn.MSELoss()
                         loss = loss_fn(q_values, target_q_values.detach())
+                        losses.append(loss.detach().cpu().item())
                         optimizerB.zero_grad()
                         loss.backward()
                         optimizerB.step()
@@ -140,6 +148,12 @@ class RainbowDQN:
             self.wandb.log({'total reward' : total_reward}, step = ep)
             rewards_l.append(total_reward)
             self.wandb.log({'average reward' : np.mean(rewards_l)}, step = ep)
+            self.wandb.log({"avg loss" : np.mean(losses)}, step = ep)
+        
+        del QNetA, QNetA_target, QNetB, QNetB_target
+        del optimizerA, optimizerB
+        gc.collect()
+        torch.cuda.empty_cache()
 
 
     def save_buffer(self):

@@ -7,6 +7,8 @@ import pickle
 import gymnasium as gym
 from rainbowDQN.rainbowdqn import RainbowDQN
 import ale_py
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 gym.register_envs(ale_py)
 

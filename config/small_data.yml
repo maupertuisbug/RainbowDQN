@@ -6,12 +6,12 @@ parameters :
   env:
     values : ['ALE/Breakout-v5']
   episodes :
-    values : [100000]
+    values : [2000]
   buffer_capacity :
     values : [1000000]
   noisyLayer :
     values : [0,1]
   batch_size :
-    values : [128]
+    values : [32]
   random_seed :
     values : [55, 45, 68]
