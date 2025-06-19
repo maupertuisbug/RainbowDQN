@@ -4,11 +4,13 @@ metric:
   name : total_reward
 parameters :
   env:
-    values : ['ALE/Breakout-v5']
+    values : ['ALE/Asterix-v5']
   episodes :
     values : [2000]
-  buffer_capacity :
+  steps :
     values : [1000000]
+  buffer_capacity :
+    values : [2000000]
   noisyLayer :
     values : [0,1]
   batch_size :

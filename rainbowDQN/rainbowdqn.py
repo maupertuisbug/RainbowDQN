@@ -17,7 +17,7 @@ import gc
 class RainbowDQN:
     def __init__(self, env, config, wandb, device):
         self.env = env
-        self.replaybuffer = TensorDictPrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=LazyTensorStorage(max_size=config.buffer_capacity, device=device), priority_key="td_error", batch_size=config.batch_size)
+        self.replaybuffer = TensorDictPrioritizedReplayBuffer(alpha=0.7, beta=0.9, storage=LazyTensorStorage(max_size=config.buffer_capacity, device="cpu"), priority_key="td_error", batch_size=config.batch_size)
         self.config = config
         self.wandb = wandb
         self.device = device
@@ -41,7 +41,6 @@ class RainbowDQN:
         sync_freq = 300
         steps = 0
         rewards_l = []
-        losses = []
         ep = 0
         inference_mode = torch.no_grad
         video_dir = "/video"
@@ -50,7 +49,7 @@ class RainbowDQN:
                         video_folder=video_dir,
                         episode_trigger=lambda ep: ep % 1000 == 0)
 
-        while ep < self.config.episodes:
+        while steps < self.config.steps:
             torch.cuda.empty_cache()
             gc.collect()
             state , _ = self.env.reset()
@@ -58,6 +57,7 @@ class RainbowDQN:
             total_reward = 0
             ep = ep+1
             done = False
+            losses = []
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
@@ -72,12 +72,12 @@ class RainbowDQN:
                         next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
                         error = reward + gamma*(QNetB_target(next_state, QNetB_target.optimal_action(next_state)))  - QNetA(state, action)
                         transition = TensorDict({
-                            "obs": torch.tensor(state).unsqueeze(0),      
-                            "action": torch.tensor([[action]]),
-                            "reward": torch.tensor(reward).unsqueeze(0),
-                            "done": torch.tensor(done).unsqueeze(0),
-                            "next": torch.tensor(next_state).unsqueeze(0),
-                            "td_error": torch.abs(torch.as_tensor(error)).view(1)
+                            "obs": torch.tensor(state,device="cpu").unsqueeze(0),      
+                            "action": torch.tensor([[action]], device="cpu"),
+                            "reward": torch.tensor(reward, device="cpu").unsqueeze(0),
+                            "done": torch.tensor(done, device="cpu").unsqueeze(0),
+                            "next": torch.tensor(next_state, device="cpu").unsqueeze(0),
+                            "td_error": torch.abs(torch.as_tensor(error, device="cpu")).view(1)
                         }, batch_size=[1])
                         self.replaybuffer.extend(transition) 
                     else:
@@ -90,12 +90,12 @@ class RainbowDQN:
                         next_state = torch.tensor(np.expand_dims(next_state, 0), device=self.device)
                         error = reward + gamma*(QNetA_target(next_state, QNetA_target.optimal_action(next_state)))  - QNetB(state, action)
                         transition = TensorDict({
-                            "obs": torch.tensor(state).unsqueeze(0),    
-                            "action": torch.tensor([[action]]),
-                            "reward": torch.tensor(reward).unsqueeze(0),
-                            "done": torch.tensor(done).unsqueeze(0),
-                            "next": torch.tensor(next_state).unsqueeze(0),
-                        "td_error": torch.abs(torch.as_tensor(error)).view(1)
+                            "obs": torch.tensor(state, device="cpu").unsqueeze(0),    
+                            "action": torch.tensor([[action]], device="cpu"),
+                            "reward": torch.tensor(reward, device="cpu").unsqueeze(0),
+                            "done": torch.tensor(done, device="cpu").unsqueeze(0),
+                            "next": torch.tensor(next_state, device="cpu").unsqueeze(0),
+                        "td_error": torch.abs(torch.as_tensor(error, device="cpu")).view(1)
                         }, batch_size=[1])
 
                         self.replaybuffer.extend(transition)  
@@ -107,11 +107,11 @@ class RainbowDQN:
 
                 if len(self.replaybuffer) > 10000:
                     sample = self.replaybuffer.sample(batch_size)
-                    states = sample["obs"]
-                    actions = sample["action"]
-                    next_states = sample["next"]
-                    rewards = sample["reward"]
-                    dones = sample["done"]
+                    states = sample["obs"].to(self.device)
+                    actions = sample["action"].to(self.device)
+                    next_states = sample["next"].to(self.device)
+                    rewards = sample["reward"].to(self.device)
+                    dones = sample["done"].to(self.device)
                     if random.random() < 0.5:
                         q_values = QNetA(states, actions)
                         target_q_values = rewards + gamma*QNetA_target(next_states, QNetB_target.optimal_action(next_states))

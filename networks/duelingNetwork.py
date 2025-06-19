@@ -24,14 +24,10 @@ class DuelingNetwork(torch.nn.Module):
             self.valuefunction = torch.nn.Sequential(
                                 torch.nn.Linear(flatten_size, 128),
                                 torch.nn.ReLU(),
-                                torch.nn.Linear(128, 128),
-                                torch.nn.ReLU(),
                                 torch.nn.Linear(128,1)
             )
             self.advantagefunction = torch.nn.Sequential(
                                 torch.nn.Linear(flatten_size, 128),
-                                torch.nn.ReLU(),
-                                torch.nn.Linear(128, 128),
                                 torch.nn.ReLU(),
                                 torch.nn.Linear(128, action_dim)
             )
@@ -39,14 +35,10 @@ class DuelingNetwork(torch.nn.Module):
             self.valuefunction = torch.nn.Sequential(
                                 NoisyLayer(flatten_size, 128),
                                 torch.nn.ReLU(),
-                                NoisyLayer(128, 128),
-                                torch.nn.ReLU(),
                                 NoisyLayer(128,1)
             )
             self.advantagefunction = torch.nn.Sequential(
                                 NoisyLayer( flatten_size, 128),
-                                torch.nn.ReLU(),
-                                NoisyLayer(128, 128),
                                 torch.nn.ReLU(),
                                 NoisyLayer(128, action_dim)
             )
