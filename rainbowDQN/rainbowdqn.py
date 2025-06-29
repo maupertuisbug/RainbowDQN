@@ -38,10 +38,11 @@ class RainbowDQN:
         epsilon_decay = 1e-6
         batch_size = self.config.batch_size
         gamma = 0.99
-        sync_freq = 300
+        sync_freq = 10000
         steps = 0
         rewards_l = []
         ep = 0
+        epl = 0
         inference_mode = torch.no_grad
         video_dir = "/video"
         env = RecordVideo(
@@ -61,6 +62,7 @@ class RainbowDQN:
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
+                epl+=1
                 with inference_mode():
                     if random.random() < 0.5:
                         if random.random() < epsilon:
@@ -105,14 +107,14 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 10000:
-                    sample = self.replaybuffer.sample(batch_size)
-                    states = sample["obs"].to(self.device)
-                    actions = sample["action"].to(self.device)
-                    next_states = sample["next"].to(self.device)
-                    rewards = sample["reward"].to(self.device)
-                    dones = sample["done"].to(self.device)
-                    if random.random() < 0.5:
+                if len(self.replaybuffer) > 80000:
+                    for iter in range(0, self.config.epochs):
+                        sample = self.replaybuffer.sample(batch_size)
+                        states = sample["obs"].to(self.device)
+                        actions = sample["action"].to(self.device)
+                        next_states = sample["next"].to(self.device)
+                        rewards = sample["reward"].to(self.device)
+                        dones = sample["done"].to(self.device)
                         q_values = QNetA(states, actions)
                         target_q_values = rewards + gamma*QNetA_target(next_states, QNetB_target.optimal_action(next_states))
                         td_error = target_q_values - q_values
@@ -124,7 +126,6 @@ class RainbowDQN:
                         optimizerA.zero_grad()
                         loss.backward()
                         optimizerA.step()
-                    else :
                         q_values = QNetB(states, actions)
                         target_q_values = rewards + gamma*QNetB_target(next_states, QNetA_target.optimal_action(next_states))
                         td_error = target_q_values - q_values
@@ -137,7 +138,7 @@ class RainbowDQN:
                         loss.backward()
                         optimizerB.step()
 
-                if ep%sync_freq == 0:
+                if steps%sync_freq == 0:
                     # let me do a soft update 
                     tau = 0.005
                     for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
@@ -149,6 +150,7 @@ class RainbowDQN:
             rewards_l.append(total_reward)
             self.wandb.log({'average reward' : np.mean(rewards_l)}, step = ep)
             self.wandb.log({"avg loss" : np.mean(losses)}, step = ep)
+            self.wandb.log({"episode length" : epl}, step = ep)
         
         del QNetA, QNetA_target, QNetB, QNetB_target
         del optimizerA, optimizerB

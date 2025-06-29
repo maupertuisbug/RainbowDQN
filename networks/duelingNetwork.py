@@ -22,25 +22,25 @@ class DuelingNetwork(torch.nn.Module):
         
         if noisyLayer == 0:
             self.valuefunction = torch.nn.Sequential(
-                                torch.nn.Linear(flatten_size, 128),
+                                torch.nn.Linear(flatten_size, 512),
                                 torch.nn.ReLU(),
-                                torch.nn.Linear(128,1)
+                                torch.nn.Linear(512,1)
             )
             self.advantagefunction = torch.nn.Sequential(
-                                torch.nn.Linear(flatten_size, 128),
+                                torch.nn.Linear(flatten_size, 512),
                                 torch.nn.ReLU(),
-                                torch.nn.Linear(128, action_dim)
+                                torch.nn.Linear(512, action_dim)
             )
         else :
             self.valuefunction = torch.nn.Sequential(
-                                NoisyLayer(flatten_size, 128),
+                                NoisyLayer(flatten_size, 512),
                                 torch.nn.ReLU(),
-                                NoisyLayer(128,1)
+                                NoisyLayer(512,1)
             )
             self.advantagefunction = torch.nn.Sequential(
-                                NoisyLayer( flatten_size, 128),
+                                NoisyLayer( flatten_size, 512),
                                 torch.nn.ReLU(),
-                                NoisyLayer(128, action_dim)
+                                NoisyLayer(512, action_dim)
             )
 
     def forward(self, x, a):
