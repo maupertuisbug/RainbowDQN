@@ -30,8 +30,8 @@ class RainbowDQN:
         QNetA_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
         QNetB = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
         QNetB_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
-        optimizerA = optim.Adam(QNetA.parameters(), lr=1e-4)
-        optimizerB = optim.Adam(QNetB.parameters(), lr=1e-4)
+        optimizerA = optim.Adam(QNetA.parameters(), lr=0.0000625)
+        optimizerB = optim.Adam(QNetB.parameters(), lr=0.0000625)
 
         epsilon = 1.0
         epsilon_min = 0.1
@@ -57,6 +57,7 @@ class RainbowDQN:
             state = np.array(state)
             total_reward = 0
             ep = ep+1
+            epl = 0
             done = False
             losses = []
             epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
@@ -107,7 +108,7 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 80000:
+                if len(self.replaybuffer) > 10000:
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(batch_size)
                         states = sample["obs"].to(self.device)

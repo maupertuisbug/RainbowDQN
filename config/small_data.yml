@@ -4,7 +4,7 @@ metric:
   name : total_reward
 parameters :
   env:
-    values : ['ALE/Asterix-v5']
+    values : ['ALE/Alien-v5']
   episodes :
     values : [2000]
   steps :
