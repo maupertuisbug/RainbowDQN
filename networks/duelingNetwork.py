@@ -52,7 +52,6 @@ class DuelingNetwork(torch.nn.Module):
         else :
             x_out = self.conv(x/255.0)
         x_out = x_out.view(x_out.size(0), -1)
-        x_out = torch.nn.functional.relu(x_out)
         value = self.valuefunction(x_out)
         advantage = self.advantagefunction(x_out)
         advantage_mean = torch.mean(advantage, dim=-1)
@@ -68,11 +67,11 @@ class DuelingNetwork(torch.nn.Module):
             else :
                 x_out = self.conv(x/255.0)
             x_out = x_out.view(x_out.size(0), -1)
-            x_out = torch.nn.functional.relu(x_out)
             value = self.valuefunction(x_out)
             advantage = self.advantagefunction(x_out)
             advantage_mean = torch.mean(advantage, dim=-1).unsqueeze(1)
             advantage_values = advantage - advantage_mean
+            advantage_values = value + advantage_values
             a = torch.argmax(advantage_values,dim=1).unsqueeze(1).to(self.device)
             return a
 

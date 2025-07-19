@@ -36,7 +36,7 @@ class RainbowDQN:
         epsilon = 1.0
         epsilon_min = 0.1
         epsilon_decay = 1e-6
-        batch_size = self.config.batch_size
+        training_batch_size = self.config.batch_size
         gamma = 0.99
         sync_freq = 10000
         steps = 0
@@ -60,9 +60,9 @@ class RainbowDQN:
             epl = 0
             done = False
             losses = []
-            epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
+                epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
                 epl+=1
                 with inference_mode():
                     if random.random() < 0.5:
@@ -108,9 +108,9 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 10000:
+                if len(self.replaybuffer) > 10000 and steps % self.config.update_freq == 0:
                     for iter in range(0, self.config.epochs):
-                        sample = self.replaybuffer.sample(batch_size)
+                        sample = self.replaybuffer.sample(training_batch_size)
                         states = sample["obs"].to(self.device)
                         actions = sample["action"].to(self.device)
                         next_states = sample["next"].to(self.device)
