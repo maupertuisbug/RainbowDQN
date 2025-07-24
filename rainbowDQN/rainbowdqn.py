@@ -28,7 +28,7 @@ class RainbowDQN:
         noisyLayer = self.config.noisyLayer
         QNetA = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
         QNetA_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
-        optimizerA = optim.Adam(QNetA.parameters(), lr=0.0001)
+        optimizerA = optim.Adam(QNetA.parameters(), lr=0.0000625)
 
         epsilon = 1.0
         epsilon_min = 0.1
@@ -59,7 +59,8 @@ class RainbowDQN:
             losses = []
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
-                epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
+                if steps < 1000000:
+                    epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
                 epl+=1
                 with inference_mode():
                     if random.random() < epsilon:
@@ -72,7 +73,7 @@ class RainbowDQN:
                     done =  torch.tensor(done, dtype=torch.float32, device=self.device)
                     error = reward + (1-done)*gamma*(QNetA_target(next_state, QNetA.optimal_action(next_state)))  - QNetA(state, action)
                     transition = TensorDict({
-                        "obs": torch.tensor(state,device="cpu").unsqueeze(0),      
+                        "obs": torch.tensor(state,device="cpu"),      
                         "action": torch.tensor([[action]], device="cpu"),
                         "reward": torch.tensor(reward, device="cpu").unsqueeze(0),
                         "done": torch.tensor(done, device="cpu").unsqueeze(0),
@@ -86,7 +87,7 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 10000 and steps % self.config.update_freq == 0:
+                if len(self.replaybuffer) > 50000 and steps % self.config.update_freq == 0:
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(training_batch_size)
                         states = sample["obs"].to(self.device)
@@ -112,12 +113,13 @@ class RainbowDQN:
                     tau = 0.005
                     for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
-
-            self.wandb.log({'total reward' : total_reward}, step = ep)
+           
             rewards_l.append(total_reward)
-            self.wandb.log({'average reward' : np.mean(rewards_l)}, step = ep)
-            self.wandb.log({"avg loss" : np.mean(losses)}, step = ep)
-            self.wandb.log({"episode length" : epl}, step = ep)
+            if ep%10 == 0:
+                self.wandb.log({'total reward' : total_reward}, step = int(ep/10))
+                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/10))
+                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/10))
+                self.wandb.log({"steps" : steps}, step = int(ep/10))
         
         del QNetA, QNetA_target
         del optimizerA, optimizerB

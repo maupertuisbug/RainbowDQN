@@ -10,14 +10,14 @@ class DuelingNetwork(torch.nn.Module):
     def __init__(self, input_dim, action_dim, noisyLayer, device):
         super().__init__()
         self.conv = torch.nn.Sequential(
-                                torch.nn.Conv2d(in_channels=1, out_channels=32, kernel_size=8, stride=4),  
+                                torch.nn.Conv2d(in_channels=4, out_channels=32, kernel_size=8, stride=4),  
                                 torch.nn.ReLU(),
                                 torch.nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),  
                                 torch.nn.ReLU(),
                                 torch.nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),  
                                 torch.nn.ReLU())
         
-        flatten_size = self.get_output_size((1, 84, 84))
+        flatten_size = self.get_output_size(( 4, 84, 84))
         self.device = device
         
         if noisyLayer == 0:

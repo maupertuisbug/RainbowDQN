@@ -9,6 +9,7 @@ from rainbowDQN.rainbowdqn import RainbowDQN
 import ale_py
 import os
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+from stable_baselines3.common.atari_wrappers import MaxAndSkipEnv
 
 gym.register_envs(ale_py)
 
@@ -20,10 +21,11 @@ def run_exp():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device being used ", device)
     env_name = config.env
-    env = gym.make(env_name)
-
+    env = gym.make(env_name, frameskip=4)
     env = gym.wrappers.ResizeObservation(env, (84, 84))
     env = gym.wrappers.GrayscaleObservation(env)
+    env = gym.wrappers.FrameStackObservation(env, 4)
+    env = MaxAndSkipEnv(env, skip=4)
 
     agent = RainbowDQN(env, config, wandb, device)
     agent.train(config.episodes)
