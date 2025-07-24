@@ -73,7 +73,7 @@ class RainbowDQN:
                     done =  torch.tensor(done, dtype=torch.float32, device=self.device)
                     error = reward + (1-done)*gamma*(QNetA_target(next_state, QNetA.optimal_action(next_state)))  - QNetA(state, action)
                     transition = TensorDict({
-                        "obs": torch.tensor(state,device="cpu"),      
+                        "obs": torch.tensor(state,device="cpu").unsqueeze(0),      
                         "action": torch.tensor([[action]], device="cpu"),
                         "reward": torch.tensor(reward, device="cpu").unsqueeze(0),
                         "done": torch.tensor(done, device="cpu").unsqueeze(0),
@@ -90,9 +90,9 @@ class RainbowDQN:
                 if len(self.replaybuffer) > 50000 and steps % self.config.update_freq == 0:
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(training_batch_size)
-                        states = sample["obs"].to(self.device)
+                        states = sample["obs"].to(self.device).squeeze(1)
                         actions = sample["action"].to(self.device)
-                        next_states = sample["next"].to(self.device)
+                        next_states = sample["next"].to(self.device).squeeze(1)
                         rewards = sample["reward"].to(self.device)
                         dones = sample["done"].to(self.device)
                         
