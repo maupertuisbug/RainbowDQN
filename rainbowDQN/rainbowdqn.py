@@ -110,7 +110,7 @@ class RainbowDQN:
 
                 if steps%sync_freq == 0:
                     # let me do a soft update 
-                    tau = 0.005
+                    tau = 0.9
                     for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
                         target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
            

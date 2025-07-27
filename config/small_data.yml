@@ -4,17 +4,17 @@ metric:
   name : total_reward
 parameters :
   env:
-    values : ['ALE/Pong-v5']
+    values : ['ALE/Breakout-v5']
   episodes :
     values : [2000]
   steps :
-    values : [2000000]
+    values : [6000000]
   epochs :
     values : [1]
   buffer_capacity :
-    values : [2000000]
+    values : [1000000]
   noisyLayer :
-    values : [0,1]
+    values : [1]
   batch_size :
     values : [32]
   random_seed :

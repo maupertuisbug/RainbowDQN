@@ -22,10 +22,14 @@ class DuelingNetwork(torch.nn.Module):
         
         if noisyLayer == 0:
             self.valuefunction = torch.nn.Sequential(
-                                torch.nn.Linear(flatten_size, 1)
+                                torch.nn.Linear(flatten_size, 512),
+                                torch.nn.ReLU(),
+                                torch.nn.Linear(512, 1)
             )
             self.advantagefunction = torch.nn.Sequential(
-                                torch.nn.Linear(flatten_size, action_dim)
+                                torch.nn.Linear(flatten_size, 512),
+                                torch.nn.ReLU(),
+                                torch.nn.Linear(512, action_dim)
             )
         else :
             self.valuefunction = torch.nn.Sequential(
