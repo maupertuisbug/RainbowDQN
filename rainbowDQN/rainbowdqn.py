@@ -11,7 +11,9 @@ import pickle
 from gym.wrappers import RecordVideo
 import gc
 
-
+def get_epsilon(start, final, total_steps, step):
+    epsilon = start - (step / total_steps) * (start - final)
+    return max(epsilon, final)
 
 
 class RainbowDQN:
@@ -28,11 +30,11 @@ class RainbowDQN:
         noisyLayer = self.config.noisyLayer
         QNetA = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
         QNetA_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
-        optimizerA = optim.Adam(QNetA.parameters(), lr=0.0000625)
+        optimizerA = optim.Adam(QNetA.parameters(), lr=0.00025)
 
         epsilon = 1.0
-        epsilon_min = 0.1
-        epsilon_decay = 1e-6
+        epsilon_min = 0.01
+        epsilon_decay = 1e-4
         training_batch_size = self.config.batch_size
         gamma = 0.99
         sync_freq = 10000
@@ -60,7 +62,7 @@ class RainbowDQN:
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
                 if steps < 1000000:
-                    epsilon = max(epsilon_min, epsilon * (1 - epsilon_decay))
+                    epsilon = get_epsilon(1.0, 0.01, 1000000, steps)
                 epl+=1
                 with inference_mode():
                     if random.random() < epsilon:
@@ -75,7 +77,7 @@ class RainbowDQN:
                     transition = TensorDict({
                         "obs": torch.tensor(state,device="cpu").unsqueeze(0),      
                         "action": torch.tensor([[action]], device="cpu"),
-                        "reward": torch.tensor(reward, device="cpu").unsqueeze(0),
+                        "reward": torch.tensor(reward, device="cpu", dtype=torch.float32).unsqueeze(0),
                         "done": torch.tensor(done, device="cpu").unsqueeze(0),
                         "next": torch.tensor(next_state, device="cpu").unsqueeze(0),
                         "td_error": torch.abs(torch.as_tensor(error, device="cpu")).view(1)
@@ -108,18 +110,18 @@ class RainbowDQN:
                         loss.backward()
                         optimizerA.step()
 
-                if steps%sync_freq == 0:
-                    # let me do a soft update 
-                    tau = 0.9
-                    for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
-                        target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+                    if steps%sync_freq == 0:
+                        # let me do a soft update 
+                        tau = 0.9
+                        for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
+                            target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
            
             rewards_l.append(total_reward)
-            if ep%10 == 0:
-                self.wandb.log({'total reward' : total_reward}, step = int(ep/10))
-                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/10))
-                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/10))
-                self.wandb.log({"steps" : steps}, step = int(ep/10))
+            if ep%5000 == 0:
+                self.wandb.log({'total reward' : total_reward}, step = int(ep/5000))
+                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/5000))
+                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/5000))
+                self.wandb.log({"steps" : steps}, step = int(ep/5000))
         
         del QNetA, QNetA_target
         del optimizerA, optimizerB

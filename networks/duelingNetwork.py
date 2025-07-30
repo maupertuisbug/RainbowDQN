@@ -54,8 +54,8 @@ class DuelingNetwork(torch.nn.Module):
         x_out = x_out.view(x_out.size(0), -1)
         value = self.valuefunction(x_out)
         advantage = self.advantagefunction(x_out)
-        advantage_mean = torch.mean(advantage, dim=-1)
         advantage_value = torch.gather(advantage, dim=1, index=a)
+        advantage_mean = torch.mean(advantage, dim=-1, keepdim=True)
         advantage_value = advantage_value - advantage_mean
         q_value = value + advantage_value
         return q_value
