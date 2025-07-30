@@ -12,7 +12,7 @@ parameters :
   epochs :
     values : [1]
   buffer_capacity :
-    values : [1000000]
+    values : [800000]
   noisyLayer :
     values : [0]
   batch_size :
