@@ -89,7 +89,7 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 10000 and steps % self.config.update_freq == 0:
+                if len(self.replaybuffer) > 30000 and steps % self.config.update_freq == 0:
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(training_batch_size)
                         states = sample["obs"].to(self.device).squeeze(1)
