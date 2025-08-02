@@ -89,7 +89,7 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 50000 and steps % self.config.update_freq == 0:
+                if len(self.replaybuffer) > 10000 and steps % self.config.update_freq == 0:
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(training_batch_size)
                         states = sample["obs"].to(self.device).squeeze(1)
@@ -98,8 +98,9 @@ class RainbowDQN:
                         rewards = sample["reward"].to(self.device)
                         dones = sample["done"].to(self.device)
                         
-                        q_values = QNetA(states, actions)
-                        target_q_values = rewards + (1-dones)*gamma*QNetA_target(next_states, QNetA.optimal_action(next_states))
+                        q_values = QNetA(states, actions).squeeze(1)
+                        target_q_values = rewards
+                        target_q_values = target_q_values + (1-dones)*gamma*(QNetA_target(next_states, QNetA.optimal_action(next_states)).squeeze(1))
                         td_error = target_q_values - q_values
                         sample.set("td_error", td_error.abs().detach())
                         self.replaybuffer.update_tensordict_priority(sample)
@@ -117,11 +118,11 @@ class RainbowDQN:
                             target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
            
             rewards_l.append(total_reward)
-            if ep%5000 == 0:
-                self.wandb.log({'total reward' : total_reward}, step = int(ep/5000))
-                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/5000))
-                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/5000))
-                self.wandb.log({"steps" : steps}, step = int(ep/5000))
+            if ep%100 == 0:
+                self.wandb.log({'total reward' : total_reward}, step = int(ep/100))
+                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/100))
+                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/100))
+                self.wandb.log({"steps" : steps}, step = int(ep/100))
         
         del QNetA, QNetA_target
         del optimizerA, optimizerB
