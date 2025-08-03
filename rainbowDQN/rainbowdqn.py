@@ -125,7 +125,7 @@ class RainbowDQN:
                 self.wandb.log({"steps" : steps}, step = int(ep/100))
         
         del QNetA, QNetA_target
-        del optimizerA, optimizerB
+        del optimizerA
         gc.collect()
         torch.cuda.empty_cache()
 
