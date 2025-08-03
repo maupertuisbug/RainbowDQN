@@ -18,6 +18,10 @@ class NoisyLayer(torch.nn.Module):
             self.register_parameter('bias_mu', None)
             self.register_parameter('bias_sigma', None)
         self.reset_parameters()
+        self.training = True
+
+    def set_training(self, mode):
+        self.training = mode
 
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.weight_mu.size(1))
@@ -28,11 +32,14 @@ class NoisyLayer(torch.nn.Module):
             self.bias_sigma.data.fill_(self.sigma_init) 
 
     def forward(self, input):
-        weight_epsilon = torch.randn_like(self.weight_sigma)
-        bias_epsilon = torch.randn_like(self.bias_sigma) if self.bias_mu is not None else None
-        
-        weight = self.weight_mu + self.weight_sigma * weight_epsilon
-        bias = self.bias_mu + self.bias_sigma * bias_epsilon if self.bias_mu is not None else None
-        
+        if self.training:
+            weight = self.weight_mu + self.weight_sigma * torch.randn_like(self.weight_sigma)
+            if self.bias_mu is not None:
+                bias = self.bias_mu + self.bias_sigma * torch.randn_like(self.bias_sigma)
+            else:
+                bias = None
+        else:
+            weight = self.weight_mu
+            bias = self.bias_mu if self.bias_mu is not None else None
         return torch.nn.functional.linear(input, weight, bias)
 

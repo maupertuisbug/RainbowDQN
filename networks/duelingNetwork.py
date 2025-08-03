@@ -80,6 +80,8 @@ class DuelingNetwork(torch.nn.Module):
         x_out = torch.tensor(x_out.shape[1:])
         return int(torch.prod(x_out))
 
+    def setEvaluationMode(self, eval):
+        for module in self.modules():
+            if isinstance(module, NoisyLayer):
+                module.set_training(not eval)
 
-
-    

@@ -65,6 +65,8 @@ class RainbowDQN:
                     epsilon = get_epsilon(1.0, 0.01, 1000000, steps)
                 epl+=1
                 with inference_mode():
+                    QNetA.setEvaluationMode(eval=True)
+                    QNetA_target.setEvaluationMode(eval=True)
                     if random.random() < epsilon:
                         action = self.env.action_space.sample()
                     else:
@@ -90,6 +92,8 @@ class RainbowDQN:
                 total_reward += reward
 
                 if len(self.replaybuffer) > 30000 and steps % self.config.update_freq == 0:
+                    QNetA.setEvaluationMode(eval=False)
+                    QNetA_target.setEvaluationMode(eval=False)
                     for iter in range(0, self.config.epochs):
                         sample = self.replaybuffer.sample(training_batch_size)
                         states = sample["obs"].to(self.device).squeeze(1)
