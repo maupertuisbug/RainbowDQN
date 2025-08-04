@@ -48,7 +48,7 @@ class RainbowDQN:
                         self.env,
                         video_folder=video_dir,
                         episode_trigger=lambda ep: ep % 1000 == 0)
-
+        losses = []
         while steps < self.config.steps:
             torch.cuda.empty_cache()
             gc.collect()
@@ -58,7 +58,6 @@ class RainbowDQN:
             ep = ep+1
             epl = 0
             done = False
-            losses = []
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             while not done:
                 if steps < 1000000:
