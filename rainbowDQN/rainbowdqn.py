@@ -48,7 +48,7 @@ class RainbowDQN:
                         self.env,
                         video_folder=video_dir,
                         episode_trigger=lambda ep: ep % 1000 == 0)
-        losses = []
+        losses = [0]
         while steps < self.config.steps:
             torch.cuda.empty_cache()
             gc.collect()
@@ -121,11 +121,11 @@ class RainbowDQN:
                             target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
            
             rewards_l.append(total_reward)
-            if ep%100 == 0:
-                self.wandb.log({'total reward' : total_reward}, step = int(ep/100))
-                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/100))
-                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/100))
-                self.wandb.log({"steps" : steps}, step = int(ep/100))
+            if ep%2 == 0:
+                self.wandb.log({'total reward' : total_reward}, step = int(ep/2))
+                self.wandb.log({'average reward' : np.mean(rewards_l)}, step = int(ep/2))
+                self.wandb.log({"avg loss" : np.mean(losses)}, step = int(ep/2))
+                self.wandb.log({"steps" : steps}, step = int(ep/2))
         
         del QNetA, QNetA_target
         del optimizerA
