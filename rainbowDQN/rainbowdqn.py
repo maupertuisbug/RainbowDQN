@@ -10,6 +10,7 @@ from networks.duelingNetwork import DuelingNetwork
 import pickle
 from gym.wrappers import RecordVideo
 import gc
+import os
 
 def get_epsilon(start, final, total_steps, step):
     epsilon = start - (step / total_steps) * (start - final)
@@ -43,12 +44,26 @@ class RainbowDQN:
         ep = 0
         epl = 0
         inference_mode = torch.no_grad
-        video_dir = "/video"
-        env = RecordVideo(
-                        self.env,
-                        video_folder=video_dir,
-                        episode_trigger=lambda ep: ep % 1000 == 0)
+        # video_dir = "/video"
+        # env = RecordVideo(
+        #                 self.env,
+        #                 video_folder=video_dir,
+        #                 episode_trigger=lambda ep: ep % 1000 == 0)
         losses = [0]
+        checkpoint_dir = "checkpoints"
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        use_checkpoint = self.config.use_checkpoint
+       
+        if os.path.exists(checkpoint_dir) and os.listdir(checkpoint_dir) and use_checkpoint:
+            target_model_path = os.path.join(checkpoint_dir, "QNetA_target.pth")
+            if os.path.isfile(target_model_path):
+                QNetA_target.load_state_dict(torch.load(target_model_path))
+                QNetA_target.to(self.device)
+            target_model_path = os.path.join(checkpoint_dir, "QNetA.pth")
+            if os.path.isfile(target_model_path):
+                QNetA.load_state_dict(torch.load(target_model_path))
+                QNetA.to(self.device)
+            
         while steps < self.config.steps:
             torch.cuda.empty_cache()
             gc.collect()
@@ -59,6 +74,7 @@ class RainbowDQN:
             epl = 0
             done = False
             state = torch.tensor(state, device=self.device).unsqueeze(0)
+            print("Episode: ", ep)
             while not done:
                 if steps < 1000000:
                     epsilon = get_epsilon(1.0, 0.01, 1000000, steps)
@@ -90,7 +106,7 @@ class RainbowDQN:
                 steps += 1
                 total_reward += reward
 
-                if len(self.replaybuffer) > 30000 and steps % self.config.update_freq == 0:
+                if len(self.replaybuffer) > 50000 and steps % self.config.update_freq == 0:
                     QNetA.setEvaluationMode(eval=False)
                     QNetA_target.setEvaluationMode(eval=False)
                     for iter in range(0, self.config.epochs):
@@ -119,6 +135,8 @@ class RainbowDQN:
                         tau = 0.9
                         for target_param, param in zip(QNetA_target.parameters(), QNetA.parameters()):
                             target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+                        torch.save(QNetA_target.state_dict(), os.path.join(checkpoint_dir, "QNetA_target.pth"))
+                        torch.save(QNetA.state_dict(), os.path.join(checkpoint_dir, "QNetA.pth"))
            
             rewards_l.append(total_reward)
             if ep%2 == 0:

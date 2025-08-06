@@ -14,10 +14,12 @@ parameters :
   buffer_capacity :
     values : [800000]
   noisyLayer :
-    values : [1, 0]
+    values : [1]
   batch_size :
     values : [128]
   random_seed :
-    values : [55, 45, 68]
+    values : [68, 90, 14]
   update_freq :
     values : [4]
+  use_checkpoint :
+    values : [False]
