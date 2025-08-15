@@ -10,7 +10,7 @@ parameters :
   max_steps :
     values : [10000]
   steps :
-    values : [3000000]
+    values : [6000000]
   epochs :
     values : [1]
   buffer_capacity :
@@ -20,7 +20,7 @@ parameters :
   batch_size :
     values : [128]
   random_seed :
-    values : [68, 78]
+    values : [68]
   update_freq :
     values : [4]
   use_checkpoint :
