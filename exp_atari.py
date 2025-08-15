@@ -12,11 +12,11 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 from stable_baselines3.common.atari_wrappers import MaxAndSkipEnv, NoopResetEnv, ClipRewardEnv
 
 gym.register_envs(ale_py)
-os.environ["WANDB_MODE"] = "offline"
+os.environ["WANDB_MODE"] = "online"
 
 
 def run_exp():
-    wandb_run = wandb.init(project="rdqn")
+    wandb_run = wandb.init(project="rdqn_exp")
     config = wandb.config 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = OmegaConf.load(args.config)
     config_dict = OmegaConf.to_container(config, resolve=True)
-    project_name = "rdqn"
+    project_name = "rdqn_exp"
     sweep_id   = wandb.sweep(sweep=config_dict, project=project_name)
     agent      = wandb.agent(sweep_id, function=run_exp, count = 10)
 

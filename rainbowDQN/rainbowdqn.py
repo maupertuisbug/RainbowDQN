@@ -7,6 +7,7 @@ import numpy as np
 import random
 from tensordict import TensorDict
 from networks.duelingNetwork import DuelingNetwork
+from networks.network  import Network
 import pickle
 from gym.wrappers import RecordVideo
 import gc
@@ -29,8 +30,14 @@ class RainbowDQN:
 
         # Create the two Q-Nets
         noisyLayer = self.config.noisyLayer
-        QNetA = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
-        QNetA_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
+        if self.config.dueling:
+            QNetA = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
+            QNetA_target = DuelingNetwork(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
+        else :
+            QNetA = Network(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
+            QNetA_target = Network(self.env.observation_space.shape, self.env.action_space.n, noisyLayer, self.device).to(self.device)
+
+
         optimizerA = optim.Adam(QNetA.parameters(), lr=0.00025)
 
         epsilon = 1.0
@@ -75,7 +82,7 @@ class RainbowDQN:
             done = False
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             print("Episode: ", ep)
-            while not done:
+            while not done and epl < self.config.max_steps:
                 if steps < 1000000:
                     epsilon = get_epsilon(1.0, 0.01, 1000000, steps)
                 epl+=1
