@@ -3,3 +3,5 @@
 *.pyc
 test.py
 output.log
+/checkpoints
+*.pkl
