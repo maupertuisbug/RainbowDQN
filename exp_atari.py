@@ -24,7 +24,7 @@ def run_exp():
     env_name = config.env
     env = gym.make(env_name)
     env = NoopResetEnv(env, noop_max=42)
-    env = MaxAndSkipEnv(env, skip=4)
+    # env = MaxAndSkipEnv(env, skip=4)
     env = ClipRewardEnv(env)
     env = gym.wrappers.ResizeObservation(env, (84, 84))
     env = gym.wrappers.GrayscaleObservation(env)

@@ -4,11 +4,11 @@ metric:
   name : total_reward
 parameters :
   env:
-    values : ['ALE/Breakout-v5']
+    values : ['ALE/Enduro-v5']
   episodes :
     values : [2000]
   max_steps :
-    values : [10000]
+    values : [1200]
   steps :
     values : [6000000]
   epochs :
@@ -26,4 +26,4 @@ parameters :
   use_checkpoint :
     values : [False]
   dueling:
-    values : [False]
+    values : [False, True]

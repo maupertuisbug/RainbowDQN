@@ -1,3 +1,5 @@
 /wandb
 .vscode/
 *.pyc
+test.py
+output.log
