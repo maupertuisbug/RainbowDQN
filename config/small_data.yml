@@ -14,7 +14,7 @@ parameters :
   epochs :
     values : [1]
   buffer_capacity :
-    values : [800000]
+    values : [80000]
   noisyLayer :
     values : [0,1]
   batch_size :
@@ -26,4 +26,22 @@ parameters :
   use_checkpoint :
     values : [False]
   dueling:
-    values : [False, True]
+    values : [True]
+  exploration_steps:
+    values : [1000000]
+  initial_steps :
+    values : [50000]
+  epsilon :
+    values : [1.0]
+  epsilon_min :
+    values : [0.01]
+  epsilon_decay :
+    values : [1e-4]
+  gamma:
+    values : [0.99]
+  sync_freq:
+    values : [10000]
+  tau:
+    values : [0.9]
+  learning_rate:
+    values : [0.00025]

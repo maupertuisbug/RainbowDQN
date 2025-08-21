@@ -16,11 +16,15 @@ os.environ["WANDB_MODE"] = "online"
 
 
 def run_exp():
+    
+    # Initalize wandb
     wandb_run = wandb.init(project="rdqn_exp")
     config = wandb.config 
 
+    # Initialize device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Device being used ", device)
+
+    # Initialize the environment
     env_name = config.env
     env = gym.make(env_name)
     env = NoopResetEnv(env, noop_max=42)
@@ -31,17 +35,23 @@ def run_exp():
     env = gym.wrappers.FrameStackObservation(env, 4)
     
 
+    # Create RDQN Agent
     agent = RainbowDQN(env, config, wandb, device)
+
+    # Call the Agent
     agent.train(config.episodes)
     
 
 
 if __name__ == "__main__":
+    # parse the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-config')
     args = parser.parse_args()
     config = OmegaConf.load(args.config)
     config_dict = OmegaConf.to_container(config, resolve=True)
+    
+    # create wandb sweep
     project_name = "rdqn_exp"
     sweep_id   = wandb.sweep(sweep=config_dict, project=project_name)
     agent      = wandb.agent(sweep_id, function=run_exp, count = 10)
